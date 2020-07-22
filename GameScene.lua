@@ -10,7 +10,7 @@ local flagjump = 0
 local GameScene = class("GameScene", function()
     local scene = cc.Scene:createWithPhysics()
     scene:getPhysicsWorld():setGravity(cc.p(0,-50))
-    scene:getPhysicsWorld():setDebugDrawMask(cc.PhysicsWorld.DEBUGDRAW_ALL)
+    --scene:getPhysicsWorld():setDebugDrawMask(cc.PhysicsWorld.DEBUGDRAW_ALL)
     return scene
 end)
 
@@ -39,8 +39,8 @@ local function animationlist(NUMBEROFFRAMES,ANIMATIONNAME,ANIMATIONTIME,BOOLEAN)
             for i=1, NUMBEROFFRAMES do
 
                 local frameName = string.format(ANIMATIONNAME.."%d.png",i)
-                cclog("frameName = %s",frameName)
-                local spriteFrame2 = spriteFrame:getSpriteFrameByName(frameName)
+                --cclog("frameName = %s",frameName)
+                local spriteFrame2 = spriteFrame:getSpriteFrame(frameName)
                 animation:addSpriteFrame(spriteFrame2)
             end
 
@@ -81,7 +81,13 @@ end
 
 local  function shootBulletFromFighter(sprite,flagx)
     local  fighterPosX,fighterPosY = sprite:getPosition()
+
     Bullet=cc.Sprite:create("ball1.png")
+    local Bulletbody = cc.PhysicsBody:createBox(Bullet:getContentSize(),cc.PhysicsMaterial(0.5, 0.5, 0.5))
+    Bulletbody:setCategoryBitmask(0x01)  --0010
+    Bulletbody:setCollisionBitmask(0X01) --0101
+    Bulletbody:setContactTestBitmask(0X01);
+    Bullet:setPhysicsBody(Bulletbody)
     Bullet:setPosition(cc.p(fighterPosX+5,fighterPosY))
     if(flagx==1)
         then
@@ -112,7 +118,7 @@ end
 
 local function onKeyPressed(keyCode, event)
     local buf = string.format("%d 键按下!",keyCode)
-    cclog(buf)
+    --cclog(buf)
     local sprite =event:getCurrentTarget()
     local animationsprite=sprite:getChildByTag(12)
     --加载动画实例
@@ -135,7 +141,7 @@ local function onKeyPressed(keyCode, event)
         moveright =Moveright()
         moveright:setTag(2)
         local ac1=sprite:runAction(moveright)
-        elseif(keyCode ==124)then
+    elseif(keyCode ==124)then
             if(flagjump ==0)then
                 if(flagx==0)then
                     animationsprite:runAction(cc.FlipX:create(true))
@@ -168,7 +174,7 @@ local function onKeyPressed(keyCode, event)
             attackaction:setTag(6)
             local ac1 =animationsprite:runAction(attackaction)
             Bullet=shootBulletFromFighter(sprite,flagx)
-            layer:addChild(Bullet)
+            layer:addChild(Bullet,0,10)
         else
             animationsprite:stopActionByTag(5)
             animationsprite:stopActionByTag(7)
@@ -176,7 +182,7 @@ local function onKeyPressed(keyCode, event)
             local ac1 =animationsprite:runAction(attackaction)
             attackaction:setTag(6)
             Bullet=shootBulletFromFighter(sprite,flagx)
-            layer:addChild(Bullet)
+            layer:addChild(Bullet,0,10)
         end
     end
             
@@ -203,6 +209,36 @@ local function onKeyReleased(keyCode, event)
     end
 end
 
+ local function onContactBegin(contact)
+        local spriteA = contact:getShapeA():getBody():getNode()
+        local spriteB = contact:getShapeB():getBody():getNode()
+
+        if spriteA and spriteB then 
+            spriteA:setColor(cc.c3b(255, 0, 0))
+            spriteB:setColor(cc.c3b(255, 0, 0))
+        end
+        cclog("danbang")
+    end
+
+local function onContactPreSolve(contact)
+        cclog("onContactPreSolve")
+        return true
+    end
+
+local function onContactPostSolve(contact)
+    cclog("onContactPostSolve")
+end
+
+local function onContactSeparate(contact)
+      local spriteA = contact:getShapeA():getBody():getNode()
+        local spriteB = contact:getShapeB():getBody():getNode()
+
+        if spriteA  and spriteB then
+            spriteA:setColor(cc.c3b(255, 255, 255))
+            spriteB:setColor(cc.c3b(255, 255, 255))
+        end
+        cclog("onContactSeparate")
+    end
 -- create layer
 function GameScene:createLayer()
 
@@ -213,10 +249,32 @@ function GameScene:createLayer()
     local sprite = cc.Sprite:create()
     local animationsprite =cc.Sprite:createWithSpriteFrameName("static1.png")
     sprite:setPosition(cc.p(size.width/2, size.height/2))
-    local body = cc.PhysicsBody:createBox(animationsprite:getContentSize(),cc.PhysicsMaterial(0.1, 0, 0.5))
-    sprite:setPhysicsBody(body)
+    local Herobody = cc.PhysicsBody:createBox(animationsprite:getContentSize(),cc.PhysicsMaterial(0.1, 0, 0.5))
+    Herobody:setCategoryBitmask(0x02)  --0001
+    Herobody:setCollisionBitmask(0x06) --0110
+    sprite:setPhysicsBody(Herobody)
     layer:addChild(sprite,0,123)
     sprite:addChild(animationsprite,0,12)
+
+
+    local enemysprite=cc.Sprite:create("enemy.png")
+    local enemybody = cc.PhysicsBody:createBox(enemysprite:getContentSize(),cc.PhysicsMaterial(0.5, 0.5, 0.5))
+    enemysprite:setPosition(cc.p(size.width/3, size.height/3))
+    enemybody:setCategoryBitmask(0x01) --0100
+    enemybody:setCollisionBitmask(0X01) --0011
+    enemybody:setContactTestBitmask(0X01);
+    enemysprite:setPhysicsBody(enemybody)
+    layer:addChild(enemysprite,0,1)
+
+    local hpsprite =cc.Sprite:create("进度条.png")
+    local enemyPosX,enemyPosY=enemysprite:getPosition()
+    hpsprite:setPosition(cc.p(enemyPosX,enemyPosY+10))
+    enemysprite:addChild(hpsprite,0,11)
+
+
+
+
+
 
     --定义世界的边界
 
@@ -240,11 +298,17 @@ function GameScene:createLayer()
 
     -- 创建一个键盘监听器
     local listener = cc.EventListenerKeyboard:create()
+    local contactListener = cc.EventListenerPhysicsContact:create()
     listener:registerScriptHandler(onKeyPressed, cc.Handler.EVENT_KEYBOARD_PRESSED )
     listener:registerScriptHandler(onKeyReleased, cc.Handler.EVENT_KEYBOARD_RELEASED )
+    contactListener:registerScriptHandler(onContactBegin, cc.Handler.EVENT_PHYSICS_CONTACT_BEGIN)
+    contactListener:registerScriptHandler(onContactPreSolve, cc.Handler.EVENT_PHYSICS_CONTACT_PRESOLVE)
+    contactListener:registerScriptHandler(onContactPostSolve, cc.Handler.EVENT_PHYSICS_CONTACT_POSTSOLVE)
+    contactListener:registerScriptHandler(onContactSeparate, cc.Handler.EVENT_PHYSICS_CONTACT_SEPARATE)
     local eventDispatcher = self:getEventDispatcher()
     -- 添加监听器
     eventDispatcher:addEventListenerWithSceneGraphPriority(listener, sprite)
+    eventDispatcher:addEventListenerWithSceneGraphPriority(contactListener, layer)
 
     ---帧动画函数
 
